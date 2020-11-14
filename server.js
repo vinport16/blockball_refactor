@@ -5,7 +5,7 @@ var app = express();
 var http = require('http').createServer(app);
 var io = sio(http);
 
-var port; //runs on heroku or localhost:3030
+var port; //runs on heroku or localhost:3030 
 
 //Server Specific Values: 
 var MAPFILE = "";
