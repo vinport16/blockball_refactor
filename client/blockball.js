@@ -121,6 +121,9 @@ function init() {
                   socket.emit("change class", "scout");
                 }
                 break;
+            case 77: //m, change mode
+                
+                break;
         }
     };
     var onKeyUp = function ( event ) {
@@ -780,8 +783,8 @@ socket.on("objects",function(things){
 
 socket.on("updateRespawnLocation", function(position){
   controls.getObject().position.x = position.x * 20;
-  controls.getObject().position.y = (position.z +2) * 20;
-  controls.getObject().position.z = position.y * 20;
+  controls.getObject().position.y = (position.y +2) * 20;
+  controls.getObject().position.z = position.z * 20;
   playerJustFell = false;
   socket.emit("respawned", {});
 })
