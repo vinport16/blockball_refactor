@@ -1,3 +1,5 @@
+var Map = require('./map.js');
+
 var fs = require('fs');
 var express = require('express');
 var sio = require('socket.io');
@@ -17,7 +19,6 @@ var ALLOWGAMERESTARTS = true;
 
 var mapFileContents;
 var map;
-var colors;
 var snowballPiles;
 
 fs.appendFileSync('pids.txt', process.pid + "\n");
@@ -52,12 +53,14 @@ fs.readFile(configFile, "utf-8", function(err, data) {
     }
   }
 
-  mapFileContents = json2contents(MAPFILE);
-  map = json2map(mapFileContents.map);
-  colors = mapFileContents.colors;
-  spawnAreas = json2spawn(mapFileContents.specialObjects.spawnAreas);
+  map = new Map(MAPFILE);
 
-  snowballPiles = json2SnowballPiles(mapFileContents.specialObjects.snowballPiles);
+  snowballPiles = [];
+  for(let sbp = 0; sbp < 200; sbp++){
+    snowballPiles.push({show:true, name:nextId++});
+    respawnSnowballPile(snowballPiles[sbp]);
+  }
+
 
 
   console.log("running on port", port);
@@ -125,84 +128,13 @@ app.get("/status.json", function(req, res){
   res.send(JSON.stringify(status));
 });
 
-function json2contents(file_name){
-  var fs = require('fs');
-  var contents = fs.readFileSync(file_name).toString();
-  const mapFileContents = JSON.parse(contents);
-  return mapFileContents;
-}
-
-function json2SnowballPiles(snowballPiles){
-  if(snowballPiles == [] || snowballPiles == undefined){
-    snowballPiles = [];
-    var numberOfSnowballs = Math.max(2, parseInt(map.length / 20 + map[0].length / 20 + map[0][0].length / 20));
-    for(var i = 0; i < numberOfSnowballs; i++){
-      var newSnowballPile = {};
-      newSnowballPile.id = i;
-      newSnowballPile.name = "SNOWBALLPILE" + newSnowballPile.id
-      newSnowballPile.amount = parseInt(Math.random() * 10 + 1);
-      newSnowballPile.show = true;
-      newSnowballPile.position = {x: 0, y: 0, z: 0};
-      respawnSnowballPile(newSnowballPile)
-      snowballPiles.push(newSnowballPile);
-    }
-  }else{
-    for(var i = 0; i < snowballPiles.length; i++){
-      snowballPiles[i].id = i;
-      snowballPiles[i].name = "SNOWBALLPILE" + snowballPiles[i].id;
-  
-      var tempSnowballPileY = snowballPiles[i].position.y;
-      var tempSnowballPileZ = snowballPiles[i].position.z;
-  
-      snowballPiles[i].position.y = tempSnowballPileZ;
-      snowballPiles[i].position.z = tempSnowballPileY;
-  
-      //leaving in the original position value in case we want them to respawn in the same spot every time.
-      //Maybe thats someting that the map maker can decide.
-      snowballPiles[i].originalPosition = {};
-      snowballPiles[i].originalPosition.x = snowballPiles[i].position.x;
-      snowballPiles[i].originalPosition.y = snowballPiles[i].position.y;
-      snowballPiles[i].originalPosition.z = snowballPiles[i].position.z;
-  
-      snowballPiles[i].show = true;
-  
-    }
-  }
-  
-  return snowballPiles;
-}
-
-function json2spawn(inputSpawn){
-  if(inputSpawn.length == 0){
-    return ["All Locations Valid"];
-  }else{
-    var spawnAreas = [];
-    inputSpawn.forEach(area => {
-      spawnAreas.push(area.value);
-    });
-
-    return spawnAreas;
-  }
-  
-}
 
 function cloneArray(inputArr){
   return JSON.parse(JSON.stringify(inputArr));
 }
 
-function json2map(inputMap){
-  var map = [];
-  map = inputMap;
-  
-  console.log("Map Loaded:",map[0][0].length, "by", map[0].length, "by", map.length);
 
-  //check to make sure its a valid map
-  if(map.length < 3){
-    console.err("The map is too short to spawn the player. Please add a map with at least 3 levels.");
-  }
-  
-  return map;
-}
+
 
 // STEP SPEED
 var wait = 20; // ms = 0.05 second = 50/sec
@@ -263,7 +195,7 @@ io.on("connection", function(socket){
   });
 
   socket.on("map", function(){
-    socket.emit("map", map, colors);
+    socket.emit("map", map.grid, map.colors);
     for(var s in snowballPiles){
       if(snowballPiles[s].show){
         socket.emit("create item", snowballPiles[s], "snowballPile");
@@ -403,9 +335,11 @@ function snowballCollisionCheck(player){
 
 function respawnSnowballPile(snowballPile){
   var newPos = getValidSpawnLocation();
+  snowballPile.position = snowballPile.position || {};
   snowballPile.position.x = newPos.x;
   snowballPile.position.y = newPos.y + 1;
   snowballPile.position.z = newPos.z;
+  snowballPile.amount = Math.floor(Math.random()*5) + 5;
   for(var p in players){
     players[p].socket.emit("create item", snowballPile, "snowballPile");
   }
@@ -417,15 +351,7 @@ function projCollisionWithMap(p, map){
   mapPos.y = Math.floor((p.position.y+10)/20);
   mapPos.z = Math.floor((p.position.z+10)/20);
 
-  if(mapPos.x >= 0 && mapPos.y >= 0 && mapPos.z >= 0){
-    if(map.length > mapPos.y && map[0].length > mapPos.z && map[0][0].length > mapPos.x){
-      if(map[mapPos.y][mapPos.z][mapPos.x] > 0){
-        return true;
-      }
-    }
-  }
-
-  return false;
+  return !map.is_empty(mapPos);
 }
 
 function projCollision(p,map){
@@ -472,33 +398,19 @@ function respawn(p){
   
   var newLocation = getValidSpawnLocation();
 
-  //console.log("found new point");
-
   p.socket.emit("updateRespawnLocation", newLocation);
   p.position = {x:-1000, y:1000, z:-1000};
-}
-
-function isEmpty(x, y, z){
-  mapPos = {x: x, y: y, z: z};
-  if(mapPos.x >= 0 && mapPos.y >= 0 && mapPos.z >= 0){
-    if(map.length > mapPos.y && map[0].length > mapPos.z && map[0][0].length > mapPos.x){
-      if(map[mapPos.y][mapPos.z][mapPos.x] > 0){
-        return false;
-      }
-    }
-  }
-  return true;
 }
 
 function getValidSpawnLocation(){
   var x, y, z = 0;
   while(true){
 
-    y = Math.floor(Math.random()*map.length);
-    z = Math.floor(Math.random()*map[0].length);
-    x = Math.floor(Math.random()*map[0][0].length);
+    y = Math.floor(Math.random()*map.size_y);
+    z = Math.floor(Math.random()*map.size_z);
+    x = Math.floor(Math.random()*map.size_x);
 
-    if(!isEmpty(x,y,z) && isEmpty(x,y+1,z) && isEmpty(x,y+2,z)){
+    if(map.is_valid_spawn_location(x, y, z)){
       return {x: x, y: y, z: z};
     }
   }
