@@ -1,4 +1,7 @@
 var Map = require('./map.js');
+var Player = require('./player.js');
+var Game = require('./game.js');
+
 
 var fs = require('fs');
 var express = require('express');
@@ -516,8 +519,8 @@ function sniperProjectile(){
 
 function heavyProjectile(){
   this.fracture = 3;
-  this.speed = 30;
-  this.grav = 6;
+  this.speed = 25;
+  this.grav = 5;
   this.lifeSpan = 800;
 }
 
