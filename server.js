@@ -223,7 +223,7 @@ io.on("connection", function(socket){
       respawn(player);
   });
 
-  socket.on("respawned", function(){
+  socket.on("moved", function(){
       player.respawning = false;
   });
 
@@ -401,7 +401,7 @@ function respawn(p){
   
   var newLocation = getValidSpawnLocation();
 
-  p.socket.emit("updateRespawnLocation", newLocation);
+  p.socket.emit("moveTo", newLocation);
   p.position = {x:-1000, y:1000, z:-1000};
 }
 

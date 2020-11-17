@@ -781,12 +781,12 @@ socket.on("objects",function(things){
     }
 });
 
-socket.on("updateRespawnLocation", function(position){
+socket.on("moveTo", function(position){
   controls.getObject().position.x = position.x * 20;
   controls.getObject().position.y = (position.y +2) * 20;
   controls.getObject().position.z = position.z * 20;
   playerJustFell = false;
-  socket.emit("respawned", {});
+  socket.emit("moved", {});
 })
 
 socket.on("projectile burst", function(p){
