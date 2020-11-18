@@ -2,10 +2,15 @@
 var Map = require('./map.js');
 var Player = require('./player.js');
 var Class = require('./class.js');
+var Projectile = require('./projectile.js');
+
+const GRAV = 5;
 
 module.exports = class Game{
   
   constructor(map){
+    this.nextId = 0;
+
     this.map = map;
     this.players = [];
     this.projectiles = [];
@@ -24,11 +29,17 @@ module.exports = class Game{
     this.respawn_player(player);
     console.log("player "+player.id+" logged in");
     
-    players.push(player);
+    this.players.push(player);
 
-    socket.on("playerFell", _player_fell(player));
-    socket.on("setUser", _set_user(info, player));
-    socket.on("map", _send_map(player));
+    socket.on("playerFell", this._player_fell_func(this, player));
+    socket.on("setUser", this._set_user_func(this, player));
+    socket.on("map", this._send_map_func(this, player));
+    socket.on("respawn", this._respawn_player_func(this, player));
+    socket.on("change class", this._change_class_func(this, player));
+    socket.on("disconnect", this._disconnect_func(this, player));
+    socket.on("launch", this._launch_func(this, player));
+    socket.on("player position", this._player_position_func(this, player));
+
   }
 
   update_leaderboard(){
@@ -55,100 +66,211 @@ module.exports = class Game{
     
     let newPosition = {};
 
-    let x, y, z = 0;
-    while(true){
+    let x, y, z = -1;
+    while(this.map.is_valid_spawn_location(x, y, z)){
 
       y = Math.floor(Math.random()*this.map.size_y);
       z = Math.floor(Math.random()*this.map.size_z);
       x = Math.floor(Math.random()*this.map.size_x);
+    }
 
-      if(this.map.is_valid_spawn_location(x, y, z)){
-        newPosition = {x: x, y: y, z: z};
+    player.move_to({x: x, y: y, z: z});
+  }
+
+  _respawn_player_func(game, player){
+    return function(){
+      game.respawn_player(player);
+  }}
+
+  _player_fell_func(game, player){return function(){
+      player.deaths.push([player.id]);
+      game.update_leaderboard();
+      game.respawn_player(player);
+  }}
+
+  _set_user_func(game, player){return function(info){
+      if(player.name != info.name){
+          console.log(player.name + " changed their name to " + info.name);
+          player.name = info.name;
+          game.update_leaderboard();
+      }
+
+      //player.color = info.color; //no longer allow player to set their own color
+
+      game.send_to_all_but(player.socket, "updatePlayer", {id:player.id, name: player.name, color:player.color, position: player.position});
+  }}
+
+  _send_map_func(game, player){return function(){
+      player.socket.emit("map", game.map.grid, game.map.colors);
+
+      //also send all the items
+
+      for(let i in game.items){
+        let item = game.items[i];
+        if(item.show){
+          player.socket.emit("create item", item, item.type); //TODO make items (snowball piles and flags) !!!!!!!!!!!!
+        }
+      }
+
+      //also send all the player info
+
+      for(let i in game.players){
+        let otherPlayer = game.players[i];
+        if(otherPlayer.id != player.id){
+          player.socket.emit("new player", {id:otherPlayer.id, position:otherPlayer.position, name:otherPlayer.name, color: otherPlayer.color});
+          otherPlayer.socket.emit("new player", {id:player.id, position:player.position, name:player.name, color: player.color});
+        }
+      }
+  }}
+
+  _change_class_func(game, player){return function(className){
+      if(Class.indexOf(className) != -1){
+        player.setClass(Class.indexOf(className));
+      }
+  }}
+
+  _disconnect_func(game, player){return function(){
+      
+      // remove player from players
+      game.players.splice(game.players.indexOf(player),1);
+
+      // let everyone know
+      game.send_to_all("player left", player.id);
+      console.log(player.name + " left");
+      game.send_to_all("message", player.name + " left");
+      game.update_leaderboard();
+  }}
+
+  _player_position_func(game, player){return function(position){
+      // check for collision with items TODO !!!!
+  }}
+
+  _launch_func(game, player){return function(angle){
+      if(player.snowballCount > 0){
+        player.snowballCount--;
+        let p = Class.projectile_settings(player.class);
+        
+        let id = game.nextId++;
+        let owner = player;
+
+        let position = {};
+        position.x = player.position.x;
+        position.y = player.position.y + 14;
+        position.z = player.position.z;
+
+        let velocity = {};
+        velocity.x = angle.dx * p.speed;
+        velocity.y = angle.dy * p.speed + 1;
+        velocity.z = angle.dz * p.speed;
+
+        position.x += angle.dx * 10;
+        position.y += angle.dy * 10;
+        position.z += angle.dz * 10;
+
+        projectile = new Projectile(id, owner, position, velocity);
+        projectile.fracture = p.fracture;
+
+        if(projectile.position.x != NaN && projectile.position.y != NaN && projectile.position.z != NaN){
+          game.projectiles.push(projectile);
+          game.move_projectile(projectile);
+        }
+      }
+  }}
+
+  _does_hit_player(p){
+    for(let i in this.players){
+      player = this.players[i];
+      
+      var dz = player.z - p.position.z;
+      var dx = player.x - p.position.x;
+      var bottom = player.y - (35/2);
+      var top = player.y + (35/2);
+
+      if(Math.sqrt(dz*dz + dx*dx) < 7.5 && p.position.y < top && p.position.y > bottom && p.owner.id != player.id){
+        return player;
       }
     }
-
-    player.move_to(newPosition);
+    return false;
   }
 
-  _player_fell(player){
-    player.deaths.push([player.id]);
-    this.update_leaderboard();
-    respawn_player(player);
-  }
 
-  _set_user(info, player){
-    if(player.name != info.name){
-        console.log(player.name + " changed their name to " + info.name);
-        player.name = info.name;
-        this.update_leaderboard();
-    }
 
-    //player.color = info.color; //no longer allow player to set their own color
+  async move_projectile(p){
+    var hit = false;
+    while(!hit && p.life < p.max_life){
+      await sleep(this.wait/4);
 
-    send_to_all_but(player.socket, "updatePlayer", {id:player.id, name: player.name, color:player.color, position: player.position});
-  }
+      p.velocity.y -= GRAV * this.wait/1000;
 
-  _send_map(player){
-    player.socket.emit("map", this.map.grid, this.map.colors);
+      p.position.x += p.velocity.x * p.speed()/4 * this.wait/1000;
+      p.position.y += p.velocity.y * p.speed()/4 * this.wait/1000;  // this physics is weird! maybe re figure this out
+      p.position.z += p.velocity.z * p.speed()/4 * this.wait/1000;
 
-    //also send all the items
+      let hitPlayer = _does_hit_player(p);
+      if(hitPlayer){
+        hit = true;
 
-    for(let i in this.items){
-      let item = this.items[i];
-      if(item.show){
-        player.socket.emit("create item", item, item.type); //TODO make items (snowball piles and flags) !!!!!!!!!!!!
+        hitPlayer.socket.emit("message", {from: "server", text: p.owner.name + " hit you!"});
+        p.owner.socket.emit("message", {from: "server", text: "you hit " + hitPlayer.name + "!"});
+
+        hitPlayer.deaths.push(p.owner.id);
+        p.owner.kills.push(hitPlayer.id);
+        respawn_player(hitPlayer);
+        update_leaderboard();
+
+      }else if(!this.map.is_empty(p.position)){
+        hit = true;
+
+        p.move_to_hit_location(map);
       }
-    }
 
-    //also send all the player info
-
-    for(i in this.players){
-      let otherPlayer = this.players[i];
-      if(otherPlayer.id != player.id){
-        player.socket.emit("new player", {id:otherPlayer.id, position:otherPlayer.position, name:otherPlayer.name, color: otherPlayer.color});
-        otherPlayer.socket.emit("new player", {id:player.id, position:player.position, name:player.name, color: player.color});
+      if(hit && p.fracture > 0){
+        p.fracture(this);
       }
-    }
-  }
 
+      p.life++;
+    }
+
+    this.send_to_all("projectile burst",{id:p.id, x:p.position.x, y:p.position.y, z:p.position.z});
+
+    // remove projectile from list
+    this.projectiles.splice(this.projectiles.indexOf(p),1);
+
+  }
 
   async report_everything(){
     while(true){
-      await sleep(wait);
+      await sleep(this.wait);
       // make structure that holds all object position data
       let things = {};
 
       // players have ids and positions
       things.players = [];
-      for(var i in players){
-        let player = players[i];
+      for(var i in this.players){
+        let player = this.players[i];
         things.players.push({id:player.id, position:player.position});
       }
 
       // projectiles have ids and positions
       things.projectiles = [];
-      for(var i in projectiles){
-        let p = projectiles[i];
+      for(var i in this.projectiles){
+        let p = this.projectiles[i];
         things.projectiles.push({id:p.id, x:p.position.x, y:p.position.y, z:p.position.z});
       }
 
-      // send every player all of the objects
-      for(var i in players){
-        player = players[i];
-        player.socket.emit("objects",things);
-      }
+      this.send_to_all("objects",things);
 
     }
   }
 
   send_to_all(label, payload){
-    for(i in this.players){
+    for(let i in this.players){
       this.players[i].socket.emit(label,payload);
     }
   }
 
   send_to_all_but(socket, label, payload){
-    for(i in this.players){
+    for(let i in this.players){
       if(this.players[i].socket != socket){
         this.players[i].socket.emit(label,payload);
       }
@@ -156,8 +278,6 @@ module.exports = class Game{
   }
 
 }
-
-var nextId = 0;
 
 
 function sleep(ms) {

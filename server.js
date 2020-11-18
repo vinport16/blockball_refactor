@@ -22,6 +22,7 @@ var ALLOWGAMERESTARTS = true;
 
 var mapFileContents;
 var map;
+var game;
 var snowballPiles;
 
 fs.appendFileSync('pids.txt', process.pid + "\n");
@@ -57,13 +58,15 @@ fs.readFile(configFile, "utf-8", function(err, data) {
   }
 
   map = new Map(MAPFILE);
+  game = new Game(map);
 
+/**
   snowballPiles = [];
   for(let sbp = 0; sbp < 200; sbp++){
     snowballPiles.push({show:true, name:nextId++});
     respawnSnowballPile(snowballPiles[sbp]);
   }
-
+**/
 
 
   console.log("running on port", port);
@@ -138,6 +141,12 @@ function cloneArray(inputArr){
 
 
 
+
+io.on("connection", function(socket){
+  game.new_player(socket);
+});
+
+/**
 
 // STEP SPEED
 var wait = 20; // ms = 0.05 second = 50/sec
@@ -638,7 +647,7 @@ async function reportEverything(){
 
 reportEverything();
 
-
+**/
 
 
 

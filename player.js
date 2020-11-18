@@ -6,7 +6,7 @@ module.exports = class Player{
   
   constructor(socket){
     this.id = nextId++;
-    this.name = "player " + player.id;
+    this.name = "player " + this.id;
     this.socket = socket;
     this.snowballCount = 0;
     this.kills = [];
@@ -16,7 +16,8 @@ module.exports = class Player{
     this.respawning = false;
     this.color = this.randomColor();
 
-    socket.on("moved", this._moved());
+    socket.on("moved", this._moved);
+    socket.on("player position", this._update_position);
 
   }
 
@@ -37,6 +38,12 @@ module.exports = class Player{
 
   _moved(){
     this.respawning = false;
+  }
+
+  _update_position(position){
+    if(!this.respawning){
+      this.position = position;
+    }
   }
 
 }
