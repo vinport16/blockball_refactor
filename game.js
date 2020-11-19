@@ -24,7 +24,7 @@ module.exports = class Game{
 
   new_player(socket){
     let player = new Player(socket);
-    player.snowballCount = 20;
+    player.snowballCount = 1000;
     player.setClass(Class.scout);
     this.respawn_player(player);
     console.log("player "+player.id+" logged in");
@@ -64,15 +64,17 @@ module.exports = class Game{
   respawn_player(player){
     player.respawning = true;
     
-    let newPosition = {};
-
-    let x, y, z = -1;
-    while(this.map.is_valid_spawn_location(x, y, z)){
+    let x = -1;
+    let y = -1;
+    let z = -1;
+    while(!this.map.is_valid_spawn_location(x, y, z)){
 
       y = Math.floor(Math.random()*this.map.size_y);
       z = Math.floor(Math.random()*this.map.size_z);
       x = Math.floor(Math.random()*this.map.size_x);
     }
+
+    console.log({x: x, y: y, z: z});
 
     player.move_to({x: x, y: y, z: z});
   }
@@ -124,8 +126,8 @@ module.exports = class Game{
   }}
 
   _change_class_func(game, player){return function(className){
-      if(Class.indexOf(className) != -1){
-        player.setClass(Class.indexOf(className));
+      if(Class.name.indexOf(className) != -1){
+        player.setClass(Class.name.indexOf(className));
       }
   }}
 
@@ -146,40 +148,12 @@ module.exports = class Game{
   }}
 
   _launch_func(game, player){return function(angle){
-      if(player.snowballCount > 0){
-        player.snowballCount--;
-        let p = Class.projectile_settings(player.class);
-        
-        let id = game.nextId++;
-        let owner = player;
-
-        let position = {};
-        position.x = player.position.x;
-        position.y = player.position.y + 14;
-        position.z = player.position.z;
-
-        let velocity = {};
-        velocity.x = angle.dx * p.speed;
-        velocity.y = angle.dy * p.speed + 1;
-        velocity.z = angle.dz * p.speed;
-
-        position.x += angle.dx * 10;
-        position.y += angle.dy * 10;
-        position.z += angle.dz * 10;
-
-        projectile = new Projectile(id, owner, position, velocity);
-        projectile.fracture = p.fracture;
-
-        if(projectile.position.x != NaN && projectile.position.y != NaN && projectile.position.z != NaN){
-          game.projectiles.push(projectile);
-          game.move_projectile(projectile);
-        }
-      }
+      player.create_projectile(game, angle);
   }}
 
   _does_hit_player(p){
     for(let i in this.players){
-      player = this.players[i];
+      let player = this.players[i];
       
       var dz = player.z - p.position.z;
       var dx = player.x - p.position.x;
@@ -197,16 +171,17 @@ module.exports = class Game{
 
   async move_projectile(p){
     var hit = false;
-    while(!hit && p.life < p.max_life){
+
+    while(!hit && p.age < p.max_age){
       await sleep(this.wait/4);
 
       p.velocity.y -= GRAV * this.wait/1000;
 
-      p.position.x += p.velocity.x * p.speed()/4 * this.wait/1000;
-      p.position.y += p.velocity.y * p.speed()/4 * this.wait/1000;  // this physics is weird! maybe re figure this out
-      p.position.z += p.velocity.z * p.speed()/4 * this.wait/1000;
+      p.position.x += p.velocity.x/4 * this.wait/1000;
+      p.position.y += p.velocity.y/4 * this.wait/1000;  // this physics... maybe re figure this out
+      p.position.z += p.velocity.z/4 * this.wait/1000;
 
-      let hitPlayer = _does_hit_player(p);
+      let hitPlayer = this._does_hit_player(p);
       if(hitPlayer){
         hit = true;
 
@@ -215,20 +190,22 @@ module.exports = class Game{
 
         hitPlayer.deaths.push(p.owner.id);
         p.owner.kills.push(hitPlayer.id);
-        respawn_player(hitPlayer);
-        update_leaderboard();
+        this.respawn_player(hitPlayer);
+        this.update_leaderboard();
 
       }else if(!this.map.is_empty(p.position)){
         hit = true;
 
-        p.move_to_hit_location(map);
+        console.log("hit da map");
+
+        p.move_to_hit_location(this.map);
       }
 
-      if(hit && p.fracture > 0){
+      if(hit && p.fractures > 0){
         p.fracture(this);
       }
 
-      p.life++;
+      p.age++;
     }
 
     this.send_to_all("projectile burst",{id:p.id, x:p.position.x, y:p.position.y, z:p.position.z});

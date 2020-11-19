@@ -27,7 +27,7 @@ module.exports = class Map{
 
     this.colors = allInfo.colors;
     
-    console.log("Map Loaded:",this.grid[0][0].length, "by", this.grid[0].length, "by", this.grid.length);
+    console.log("Map Loaded:",this.size_x, "by", this.size_z, "by", this.size_y);
 
     //check to make sure its a valid map
     if(!this.is_valid()){
@@ -80,13 +80,13 @@ module.exports = class Map{
 
 
 
-// call with [x, y, z] or [position]
+// call with [[x, y, z]] or [[position]]
 // returns {x y z} position object
 function args_to_pos(...args){
   if(args[0].length == 1){
-    return args[0][0];
+    return {x:Math.floor(args[0][0].x), y:Math.floor(args[0][0].y), z:Math.floor(args[0][0].z)};
   }else if(args[0].length == 3){
-    return {x:args[0][0], y:args[0][1], z:args[0][2]};
+    return {x:Math.floor(args[0][0]), y:Math.floor(args[0][1]), z:Math.floor(args[0][2])};
   }else{
     console.error("wrong number of arguments for position");
     return;

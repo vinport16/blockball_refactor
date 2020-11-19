@@ -128,7 +128,7 @@ app.get("/status.json", function(req, res){
   let status = {
     name: SERVER_NAME,
     description: SERVER_DESCRIPTION,
-    players: players.length,
+    players: game.players.length,
     maxPlayers: 999,
   };
   res.send(JSON.stringify(status));

@@ -23,25 +23,25 @@ module.exports = {
   heavy:3,
 
   projectile_settings: function(class_number){
-    p = {};
+    let p = {};
     switch(class_number){
       case 0: // noclass
-        p.fracture = 0;
+        p.fractures = 0;
         p.speed = 0;
         p.lifeSpan = 0;
         break;
       case 1: // scout
-        p.fracture = 0;
+        p.fractures = 0;
         p.speed = 40;
         p.lifeSpan = 800;
         break;
       case 2: // sniper
-        p.fracture = 0;
+        p.fractures = 0;
         p.speed = 100;
         p.lifeSpan = 800;
         break;
       case 3: // heavy
-        p.fracture = 3;
+        p.fractures = 3;
         p.speed = 25;
         p.lifeSpan = 800;
         break;

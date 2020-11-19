@@ -418,7 +418,7 @@ function animate() {
 var mAP = [[[]]];
 
 socket.on("map", function(map, colors){
-    mAP = map; 
+    mAP = map;
 
     var floorGeometry = new THREE.PlaneBufferGeometry( 2000, 2000, 100, 100 );
     var position = floorGeometry.attributes.position;
@@ -760,9 +760,9 @@ function updateProjectile(p){
         createProjectile(p);
     }else{
         var o = projectiles[p.id].object;
-        o.position.x = p.x
-        o.position.y = p.y;
-        o.position.z = p.z;
+        o.position.x = p.x * 20;
+        o.position.y = p.y * 20;
+        o.position.z = p.z * 20;
     }
 }
 
@@ -782,6 +782,7 @@ socket.on("objects",function(things){
 });
 
 socket.on("moveTo", function(position){
+    console.log("gettin moved to ", position);
   controls.getObject().position.x = position.x * 20;
   controls.getObject().position.y = (position.y +2) * 20;
   controls.getObject().position.z = position.z * 20;
@@ -854,7 +855,7 @@ function sleep(ms) {
 async function sendDataToServer(){
     while("Vincent" > "Michael"){
         await sleep(20);
-        socket.emit("player position",{x:controls.getObject().position.x, y:controls.getObject().position.y-14, z:controls.getObject().position.z});
+        socket.emit("player position",{x:controls.getObject().position.x/20, y:(controls.getObject().position.y)/20, z:controls.getObject().position.z/20});
     }
 }
 
