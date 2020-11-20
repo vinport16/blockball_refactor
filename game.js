@@ -74,8 +74,6 @@ module.exports = class Game{
       x = Math.floor(Math.random()*this.map.size_x);
     }
 
-    console.log({x: x, y: y, z: z});
-
     player.move_to({x: x, y: y, z: z});
   }
 
@@ -147,7 +145,8 @@ module.exports = class Game{
       // check for collision with items TODO !!!!
   }}
 
-  _launch_func(game, player){return function(angle){
+  _launch_func(game, player){
+    return function(angle){
       player.create_projectile(game, angle);
   }}
 
@@ -195,8 +194,6 @@ module.exports = class Game{
 
       }else if(!this.map.is_empty(p.position)){
         hit = true;
-
-        console.log("hit da map");
 
         p.move_to_hit_location(this.map);
       }

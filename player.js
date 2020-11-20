@@ -17,8 +17,8 @@ module.exports = class Player{
     this.respawning = false;
     this.color = this.randomColor();
 
-    socket.on("moved", this._moved);
-    socket.on("player position", this._update_position);
+    socket.on("moved", this._moved_func(this));
+    socket.on("player position", this._update_position_func(this));
 
   }
 
@@ -43,7 +43,7 @@ module.exports = class Player{
 
       let position = {};
       position.x = this.position.x;
-      position.y = this.position.y + 1.7;
+      position.y = this.position.y + 1.5;
       position.z = this.position.z;
 
       let velocity = {};
@@ -51,14 +51,12 @@ module.exports = class Player{
       velocity.y = angle.dy * p.speed + 1;
       velocity.z = angle.dz * p.speed;
 
-      position.x += angle.dx * 0.5;
-      position.y += angle.dy * 0.5;
-      position.z += angle.dz * 0.5;
+      position.x += angle.dx * 0.05;
+      position.y += angle.dy * 0.05;
+      position.z += angle.dz * 0.05;
 
       let projectile = new Projectile(id, owner, position, velocity);
       projectile.fractures = p.fractures;
-
-      console.log("its here", projectile.position);
       
       game.projectiles.push(projectile);
       game.move_projectile(projectile);
@@ -69,18 +67,15 @@ module.exports = class Player{
     return "hsl(" +(Math.random()*360)+ ", 50%, 50%)";
   }
 
-  _moved(){
-    this.respawning = false;
-  }
+  _moved_func(player){return function(){
+      player.respawning = false;
+  }}
 
-  _update_position(position){
-    if(!this.respawning){
-      if(Math.random() > 0.99){
-        console.log(position);
+  _update_position_func(player){return function(position){
+      if(!player.respawning){
+        player.position = position;
       }
-      this.position = position;
-    }
-  }
+  }}
 
 }
 

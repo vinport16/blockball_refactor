@@ -19,7 +19,7 @@ var playerJustFell = false;
 var loadStatus = 1;
 var playerClass = "scout";
 var reloadTime = 100;
-var playerSnowballCount = 20;
+var playerSnowballCount = 1000;
 
 init();
 animate();
@@ -227,9 +227,9 @@ function isColliding(position){
     var collidingWith = [];
     var checkspots = [];
     var mapPos = {};
-    mapPos.x = ((position.x+10)/20);
-    mapPos.y = ((position.y-5)/20);
-    mapPos.z = ((position.z+10)/20);
+    mapPos.x = ((position.x)/20);
+    mapPos.y = ((position.y-15)/20);
+    mapPos.z = ((position.z)/20);
     mapPos.ox = false;
     mapPos.oz = false;
 
@@ -445,9 +445,9 @@ socket.on("map", function(map, colors){
                     var box = new THREE.BoxGeometry( 20, 20, 20 );
                     
                     var p = {};
-                    p.x = k*20;
-                    p.y = i*20;
-                    p.z = j*20;
+                    p.x = k*20 + 10;
+                    p.y = i*20 + 10;
+                    p.z = j*20 + 10;
 
                     // move box
                     box.translate(p.x,p.y,p.z);
@@ -589,9 +589,9 @@ function drawPlayer(player){
     //let newMaterial = new THREE.MeshBasicMaterial({color: player.color, map: loader.load('/sprites/Star.png')});
 
     var model = new THREE.Mesh( cylinderGeometry, material );
-    model.position.x = player.position.x;
-    model.position.y = player.position.y;
-    model.position.z = player.position.z;
+    model.position.x = player.position.x * 20;
+    model.position.y = player.position.y * 20;
+    model.position.z = player.position.z * 20;
     model.name = "MODEL FOR: " + player.id;
 
     player.userName = player.name;
@@ -726,13 +726,13 @@ function roundRect(ctx, x, y, w, h, r)
 
 function updatePlayer(player){
     var p = players[player.id];
-    p.model.position.x = player.position.x;
-    p.model.position.y = player.position.y;
-    p.model.position.z = player.position.z;
+    p.model.position.x = player.position.x * 20;
+    p.model.position.y = player.position.y * 20;
+    p.model.position.z = player.position.z * 20;
    
-    p.usernameLabel.position.x = player.position.x;
-    p.usernameLabel.position.y = player.position.y + 15;
-    p.usernameLabel.position.z = player.position.z;
+    p.usernameLabel.position.x = player.position.x * 20;
+    p.usernameLabel.position.y = (player.position.y * 20) + 15;
+    p.usernameLabel.position.z = player.position.z * 20;
 }
 
 socket.on("player left", function(id){
@@ -784,7 +784,7 @@ socket.on("objects",function(things){
 socket.on("moveTo", function(position){
     console.log("gettin moved to ", position);
   controls.getObject().position.x = position.x * 20;
-  controls.getObject().position.y = (position.y +2) * 20;
+  controls.getObject().position.y = (position.y + 1.5) * 20;
   controls.getObject().position.z = position.z * 20;
   playerJustFell = false;
   socket.emit("moved", {});
@@ -795,9 +795,9 @@ socket.on("projectile burst", function(p){
         createProjectile(p);
     }
     var o = projectiles[p.id].object;
-    o.position.x = p.x
-    o.position.y = p.y;
-    o.position.z = p.z;
+    o.position.x = p.x * 20;
+    o.position.y = p.y * 20;
+    o.position.z = p.z * 20;
 
     o.material = new THREE.MeshLambertMaterial( {color: 0xFF5511} );
     setTimeout(function(){
@@ -855,7 +855,7 @@ function sleep(ms) {
 async function sendDataToServer(){
     while("Vincent" > "Michael"){
         await sleep(20);
-        socket.emit("player position",{x:controls.getObject().position.x/20, y:(controls.getObject().position.y)/20, z:controls.getObject().position.z/20});
+        socket.emit("player position",{x:controls.getObject().position.x/20, y:(controls.getObject().position.y - 15)/20, z:controls.getObject().position.z/20});
     }
 }
 

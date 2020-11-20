@@ -65,7 +65,7 @@ module.exports = class Map{
 
   is_valid_spawn_location(...args){
     let mapPos = args_to_pos(args);
-    return !this.is_empty(mapPos) && this.is_empty(mapPos.x, mapPos.y+1, mapPos.z) && this.is_empty(mapPos.x, mapPos.y+2, mapPos.z);
+    return !this.is_empty(mapPos.x, mapPos.y-1, mapPos.z) && this.is_empty(mapPos) && this.is_empty(mapPos.x, mapPos.y+1, mapPos.z);
   }
 
 
