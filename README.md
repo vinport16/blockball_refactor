@@ -12,7 +12,6 @@ Features:
 
 Uses Three.js, Socket.io, Express
 
-
 To run the game locally: 
 - Clone the repo
 - In the repo: 
