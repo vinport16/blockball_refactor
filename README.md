@@ -11,3 +11,12 @@ Features:
 - 3D graphics optimized with chunking (one chunk)
 
 Uses Three.js, Socket.io, Express
+
+
+To run the game locally: 
+- Clone the repo
+- In the repo: 
+    - run: `npm install`
+    - run: `awk -f createConfigFiles.awk`
+    - run: `npm start config<port>.txt`
+- The game is now running at `localhost:<port>`
