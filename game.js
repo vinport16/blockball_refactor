@@ -30,15 +30,7 @@ module.exports = class Game{
     console.log("player "+player.id+" logged in");
     
     this.players.push(player);
-
-    socket.on("playerFell", this._player_fell_func(this, player));
-    socket.on("setUser", this._set_user_func(this, player));
-    socket.on("map", this._send_map_func(this, player));
-    socket.on("respawn", this._respawn_player_func(this, player));
-    socket.on("change class", this._change_class_func(this, player));
-    socket.on("disconnect", this._disconnect_func(this, player));
-    socket.on("launch", this._launch_func(this, player));
-    socket.on("player position", this._player_position_func(this, player));
+    return player;
 
   }
 
@@ -77,78 +69,73 @@ module.exports = class Game{
     player.move_to({x: x, y: y, z: z});
   }
 
-  _respawn_player_func(game, player){
-    return function(){
-      game.respawn_player(player);
-  }}
+  player_fell(player){
+    player.deaths.push([player.id]);
+    this.update_leaderboard();
+    this.respawn_player(player);
+  }
 
-  _player_fell_func(game, player){return function(){
-      player.deaths.push([player.id]);
-      game.update_leaderboard();
-      game.respawn_player(player);
-  }}
+  set_user(player, info){
+    if(player.name != info.name){
+        console.log(player.name + " changed their name to " + info.name);
+        player.name = info.name;
+        this.update_leaderboard();
+    }
 
-  _set_user_func(game, player){return function(info){
-      if(player.name != info.name){
-          console.log(player.name + " changed their name to " + info.name);
-          player.name = info.name;
-          game.update_leaderboard();
+    //player.color = info.color; //no longer allow player to set their own color
+
+    this.send_to_all_but(player.socket, "updatePlayer", {id:player.id, name: player.name, color:player.color, position: player.position});
+  }
+
+  send_map_to(player){
+    player.socket.emit("map", this.map.grid, this.map.colors);
+
+    //also send all the items
+
+    for(let i in this.items){
+      let item = this.items[i];
+      if(item.show){
+        player.socket.emit("create item", item, item.type); //TODO make items (snowball piles and flags) !!!!!!!!!!!!
       }
+    }
 
-      //player.color = info.color; //no longer allow player to set their own color
+    //also send all the player info
 
-      game.send_to_all_but(player.socket, "updatePlayer", {id:player.id, name: player.name, color:player.color, position: player.position});
-  }}
-
-  _send_map_func(game, player){return function(){
-      player.socket.emit("map", game.map.grid, game.map.colors);
-
-      //also send all the items
-
-      for(let i in game.items){
-        let item = game.items[i];
-        if(item.show){
-          player.socket.emit("create item", item, item.type); //TODO make items (snowball piles and flags) !!!!!!!!!!!!
-        }
+    for(let i in this.players){
+      let otherPlayer = this.players[i];
+      if(otherPlayer.id != player.id){
+        player.socket.emit("new player", {id:otherPlayer.id, position:otherPlayer.position, name:otherPlayer.name, color: otherPlayer.color});
+        otherPlayer.socket.emit("new player", {id:player.id, position:player.position, name:player.name, color: player.color});
       }
+    }
+  }
 
-      //also send all the player info
+  change_class(player, className){
+    if(Class.name.indexOf(className) != -1){
+      player.setClass(Class.name.indexOf(className));
+    }
+  }
 
-      for(let i in game.players){
-        let otherPlayer = game.players[i];
-        if(otherPlayer.id != player.id){
-          player.socket.emit("new player", {id:otherPlayer.id, position:otherPlayer.position, name:otherPlayer.name, color: otherPlayer.color});
-          otherPlayer.socket.emit("new player", {id:player.id, position:player.position, name:player.name, color: player.color});
-        }
-      }
-  }}
+  disconnect(player){
+    
+    // remove player from players
+    this.players.splice(this.players.indexOf(player),1);
 
-  _change_class_func(game, player){return function(className){
-      if(Class.name.indexOf(className) != -1){
-        player.setClass(Class.name.indexOf(className));
-      }
-  }}
+    // let everyone know
+    this.send_to_all("player left", player.id);
+    console.log(player.name + " left");
+    this.send_to_all("message", player.name + " left");
+    this.update_leaderboard();
+  }
 
-  _disconnect_func(game, player){return function(){
-      
-      // remove player from players
-      game.players.splice(game.players.indexOf(player),1);
+  update_player_position(player, position){
+    player.update_position(position);
+    // check for collision with items TODO !!!!
+  }
 
-      // let everyone know
-      game.send_to_all("player left", player.id);
-      console.log(player.name + " left");
-      game.send_to_all("message", player.name + " left");
-      game.update_leaderboard();
-  }}
-
-  _player_position_func(game, player){return function(position){
-      // check for collision with items TODO !!!!
-  }}
-
-  _launch_func(game, player){
-    return function(angle){
-      player.create_projectile(game, angle);
-  }}
+  launch(player, angle){
+    player.create_projectile(this, angle);
+  }
 
   _does_hit_player(p){
     for(let i in this.players){
