@@ -17,9 +17,6 @@ module.exports = class Player{
     this.respawning = false;
     this.color = this.randomColor();
 
-    socket.on("moved", this._moved_func(this));
-    socket.on("player position", this._update_position_func(this));
-
   }
 
   setClass(c){
@@ -67,15 +64,15 @@ module.exports = class Player{
     return "hsl(" +(Math.random()*360)+ ", 50%, 50%)";
   }
 
-  _moved_func(player){return function(){
-      player.respawning = false;
-  }}
+  moved(){
+    this.respawning = false;
+  }
 
-  _update_position_func(player){return function(position){
-      if(!player.respawning){
-        player.position = position;
-      }
-  }}
+  update_position(position){
+    if(!this.respawning){
+      this.position = position;
+    }
+  }
 
 }
 

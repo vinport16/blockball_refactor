@@ -142,8 +142,51 @@ function cloneArray(inputArr){
 
 
 
+
 io.on("connection", function(socket){
-  game.new_player(socket);
+
+  let player = game.new_player(socket);
+
+  socket.on("setUser", function(info){
+    game.set_user(player, info);
+  });
+
+  socket.on("map", function(){
+    game.send_map_to(player);
+  });
+
+  socket.on("respawn", function() {
+    game.respawn_player(player);
+  });
+
+  socket.on("playerFell", function(){
+    game.player_fell(player);
+  });
+
+  socket.on("moved", function(){
+    player.moved();
+  });
+
+  socket.on("player position", function(position){
+    game.update_player_position(player, position);
+  });
+
+  socket.on("change class", function(newClass){
+    game.change_class(player, newClass);
+  });
+
+  socket.on("disconnect",function(){
+    game.disconnect(player);
+  });
+
+  socket.on("launch", function(angle){
+    game.launch(player, angle);
+  });
+
+  socket.on("message", function(message){
+    game.send_to_all("message", {from:player.name, text:message});
+  });
+
 });
 
 /**
