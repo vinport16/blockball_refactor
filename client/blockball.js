@@ -183,7 +183,7 @@ function init() {
 function add_crosshair(camera) {
   var material = new THREE.LineBasicMaterial({ color: 0xAAFFAA });
   // crosshair size
-  var x = 0.1, y = 0.1;
+  var x = 0.005, y = 0.005;
 
   var geometry = new THREE.Geometry();
 
@@ -205,7 +205,7 @@ function add_crosshair(camera) {
   crosshair.position.x = crosshairPositionX * camera.aspect;
   crosshair.position.y = crosshairPositionY;
 
-  crosshair.position.z = -5;
+  crosshair.position.z = -0.25;
 
   camera.add( crosshair );
 }
@@ -287,7 +287,7 @@ function nextPosition(position, move){
         return next;
     }
 
-    let stepsize = move.length() / (1 + Math.floor(move.length()));
+    let stepsize = move.length() / (1 + Math.floor(move.length() / 0.5));
     stepsize = stepsize - 0.01;
     if(stepsize < 0.01){stepsize = 0.01;}
 
@@ -364,9 +364,9 @@ function animate() {
 
         var time = performance.now();
         var delta = ( time - prevTime ) / 1000;
-        velocity.x -= velocity.x * 3.0 * delta;
-        velocity.z -= velocity.z * 3.0 * delta;
-        velocity.y -= 9.8 * 2.5 * delta; // 100.0 = mass
+        velocity.x -= velocity.x * 4.0 * delta;
+        velocity.z -= velocity.z * 4.0 * delta;
+        velocity.y -= 9.8 * 2.0 * delta; // 100.0 = mass
         if(velocity.y < terminalVelocityY) {
             velocity.y = terminalVelocityY;
           }
