@@ -40,7 +40,7 @@ module.exports = class Player{
 
       let position = {};
       position.x = this.position.x;
-      position.y = this.position.y + 1.5;
+      position.y = this.position.y + 0.8;
       position.z = this.position.z;
 
       let velocity = {};

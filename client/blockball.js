@@ -14,7 +14,6 @@ var vertex = new THREE.Vector3();
 var color = new THREE.Color();
 var sprint = false;
 var startTime = Date.now();
-var player_radius = 0.375;
 var playerJustFell = false;
 var loadStatus = 1;
 var playerClass = "scout";
@@ -785,7 +784,7 @@ socket.on("objects",function(things){
 socket.on("moveTo", function(position){
     console.log("gettin moved to ", position);
   controls.getObject().position.x = position.x;
-  controls.getObject().position.y = (position.y + 0.75);
+  controls.getObject().position.y = (position.y + 1.5);
   controls.getObject().position.z = position.z;
   playerJustFell = false;
   socket.emit("moved", {});
