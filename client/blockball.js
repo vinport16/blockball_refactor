@@ -288,8 +288,8 @@ function nextPosition(position, move){
     }
 
     let stepsize = move.length() / (1 + Math.floor(move.length() / 0.5));
-    stepsize = stepsize - 0.01;
-    if(stepsize < 0.01){stepsize = 0.01;}
+    stepsize = stepsize - 0.0005;
+    if(stepsize < 0.0005){stepsize = 0.0005;}
 
     let fauxPosition = position.clone();
     for(let step = stepsize; step < move.length(); step += stepsize){
@@ -319,9 +319,9 @@ function nextPosition(position, move){
         // determine if you can go more in the x or z direction
     
         let xtester = fauxPosition.clone();
-        xtester.x += Math.sign(move.x)/0.5;
+        xtester.x += Math.sign(move.x)/10;
         let ztester = fauxPosition.clone();
-        ztester.z += Math.sign(move.z)/0.5;
+        ztester.z += Math.sign(move.z)/10;
 
         let newMove = move.clone().sub(fauxPosition.clone().sub(position));
 
