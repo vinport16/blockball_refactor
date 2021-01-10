@@ -143,10 +143,10 @@ module.exports = class Game{
       
       var dz = player.z - p.position.z;
       var dx = player.x - p.position.x;
-      var bottom = player.y - (35/2);
-      var top = player.y + (35/2);
+      var bottom = player.y - (1.5/2);
+      var top = player.y + (1.5/2);
 
-      if(Math.sqrt(dz*dz + dx*dx) < 7.5 && p.position.y < top && p.position.y > bottom && p.owner.id != player.id){
+      if(Math.sqrt(dz*dz + dx*dx) < 0.375 && p.position.y < top && p.position.y > bottom && p.owner.id != player.id){
         return player;
       }
     }

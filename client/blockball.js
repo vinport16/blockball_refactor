@@ -8,13 +8,12 @@ var moveRight = false;
 var canJump = false;
 var prevTime = performance.now();
 var velocity = new THREE.Vector3();
-var terminalVelocityY = -500;
+var terminalVelocityY = -25;
 var direction = new THREE.Vector3();
 var vertex = new THREE.Vector3();
 var color = new THREE.Color();
 var sprint = false;
 var startTime = Date.now();
-var player_radius = 7.5;
 var playerJustFell = false;
 var loadStatus = 1;
 var playerClass = "scout";
@@ -25,12 +24,12 @@ init();
 animate();
 
 function init() {
-    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 150*20 );
-    camera.position.y = 200;
+    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.05, 150 );
+    camera.position.y = 10;
     scene = new THREE.Scene();
     //scene.background = new THREE.Color( 0x44ff00 );
     scene.background = new THREE.MeshLambertMaterial({ color: 0x663333 });
-    scene.fog = new THREE.Fog( 0x99ff88, 100*20, 150*20 );
+    scene.fog = new THREE.Fog( 0x99ff88, 100, 150 );
     var light = new THREE.HemisphereLight( 0xeeeeff, 0x777788, 0.75 );
     light.position.set( 0.5, 1, 0.75 );
     scene.add( light );
@@ -58,9 +57,9 @@ function init() {
         instructions.style.display = '';
         leaderboard.style.display = '';
     } );
-    controls.getObject().position.x = 200;
-    controls.getObject().position.y = 120;
-    controls.getObject().position.z = 200;
+    controls.getObject().position.x = 10;
+    controls.getObject().position.y = 6;
+    controls.getObject().position.z = 10;
     socket.emit("respawn");
     scene.add( controls.getObject() );
     var onClick = function ( event ) {
@@ -103,7 +102,7 @@ function init() {
                 moveRight = true;
                 break;
             case 32: // space
-                if ( canJump === true ) velocity.y += 180;
+                if ( canJump === true ) velocity.y += 9;
                 canJump = false;
                 break;
             case 69: // e
@@ -179,10 +178,11 @@ function init() {
     //
     window.addEventListener( 'resize', onWindowResize, false );
 }
+
 function add_crosshair(camera) {
   var material = new THREE.LineBasicMaterial({ color: 0xAAFFAA });
   // crosshair size
-  var x = 0.1, y = 0.1;
+  var x = 0.005, y = 0.005;
 
   var geometry = new THREE.Geometry();
 
@@ -204,7 +204,7 @@ function add_crosshair(camera) {
   crosshair.position.x = crosshairPositionX * camera.aspect;
   crosshair.position.y = crosshairPositionY;
 
-  crosshair.position.z = -5;
+  crosshair.position.z = -0.25;
 
   camera.add( crosshair );
 }
@@ -227,13 +227,13 @@ function isColliding(position){
     var collidingWith = [];
     var checkspots = [];
     var mapPos = {};
-    mapPos.x = ((position.x)/20);
-    mapPos.y = ((position.y-15)/20);
-    mapPos.z = ((position.z)/20);
+    mapPos.x = ((position.x));
+    mapPos.y = ((position.y-0.75));
+    mapPos.z = ((position.z));
     mapPos.ox = false;
     mapPos.oz = false;
 
-    let radius = (7.5)/20;
+    let radius = (0.375);
 
     if(mapPos.x % 1 > 1-radius){
         mapPos.ox = mapPos.x+1;
@@ -278,7 +278,7 @@ function nextPosition(position, move){
     }
 
     let slightlyHigher = position.clone();
-    slightlyHigher.y += Math.sign(move.y)/10;
+    slightlyHigher.y += Math.sign(move.y)/0.5;
 
     if(isColliding(position) || isColliding(slightlyHigher)){
         let next = position.clone();
@@ -286,9 +286,9 @@ function nextPosition(position, move){
         return next;
     }
 
-    let stepsize = move.length() / (1 + Math.floor(move.length() / (20/2)));
-    stepsize = stepsize - 0.01;
-    if(stepsize < 0.01){stepsize = 0.01;}
+    let stepsize = move.length() / (1 + Math.floor(move.length() / 0.5));
+    stepsize = stepsize - 0.0005;
+    if(stepsize < 0.0005){stepsize = 0.0005;}
 
     let fauxPosition = position.clone();
     for(let step = stepsize; step < move.length(); step += stepsize){
@@ -339,7 +339,7 @@ function nextPosition(position, move){
 
 function animate() {
     requestAnimationFrame( animate );
-    if(controls.getObject().position.y <= 15) {
+    if(controls.getObject().position.y <= 2) {
       if(!playerJustFell){
         playerJustFell = true;
         velocity.y = 0;
@@ -358,14 +358,14 @@ function animate() {
 
         
         let slightlyLower = controls.getObject().position.clone();
-        slightlyLower.y -= 35/2; //half height
+        slightlyLower.y -= 1.75/2; //half height
         var onObject = isColliding(slightlyLower);
 
         var time = performance.now();
         var delta = ( time - prevTime ) / 1000;
         velocity.x -= velocity.x * 4.0 * delta;
         velocity.z -= velocity.z * 4.0 * delta;
-        velocity.y -= 9.8 * 50.0 * delta; // 100.0 = mass
+        velocity.y -= 9.8 * 2.0 * delta; // 100.0 = mass
         if(velocity.y < terminalVelocityY) {
             velocity.y = terminalVelocityY;
           }
@@ -373,10 +373,10 @@ function animate() {
         direction.x = Number( moveRight ) - Number( moveLeft );
         direction.normalize(); // this ensures consistent movements in all directions
         if(sprint && (moveForward || moveBackward)){
-            velocity.z -= direction.z * 600.0 * delta;
+            velocity.z -= direction.z * 30.0 * delta;
         }
-        else if ( moveForward || moveBackward ){velocity.z -= direction.z * 350.0 * delta;}
-        if ( moveLeft || moveRight ) velocity.x -= direction.x * 350.0 * delta;
+        else if ( moveForward || moveBackward ){velocity.z -= direction.z * 17.5 * delta;}
+        if ( moveLeft || moveRight ) velocity.x -= direction.x * 17.5 * delta;
         if ( onObject === true ) {
             velocity.y = Math.max( 0, velocity.y );
             canJump = true;
@@ -442,12 +442,12 @@ socket.on("map", function(map, colors){
                     material.color.offsetHSL(0,0, Math.random() * colorInfo[1] * 2 - colorInfo[1] )
                     boxMaterial = material;
 
-                    var box = new THREE.BoxGeometry( 20, 20, 20 );
+                    var box = new THREE.BoxGeometry( 1, 1, 1 );
                     
                     var p = {};
-                    p.x = k*20 + 10;
-                    p.y = i*20 + 10;
-                    p.z = j*20 + 10;
+                    p.x = k + 0.5;
+                    p.y = i + 0.5;
+                    p.z = j + 0.5;
 
                     // move box
                     box.translate(p.x,p.y,p.z);
@@ -491,11 +491,11 @@ function makeSides(map,i,j,k,p){
     if(map[i+1] == undefined || noBlockAt(map[i+1][j][k])){
         // +y
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
 
         square.faces.push(new THREE.Face3(0, 1, 2));
         square.faces.push(new THREE.Face3(0, 2, 3));
@@ -505,11 +505,11 @@ function makeSides(map,i,j,k,p){
     if(map[i-1] == undefined || noBlockAt(map[i-1][j][k])){
         // -y
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z+10));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z+0.5));
 
         square.faces.push(new THREE.Face3(0, 2, 1));
         square.faces.push(new THREE.Face3(0, 3, 2));
@@ -519,11 +519,11 @@ function makeSides(map,i,j,k,p){
     if(map[i][j+1] == undefined || noBlockAt(map[i][j+1][k])){
         // +z
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
 
         square.faces.push(new THREE.Face3(0, 2, 1));
         square.faces.push(new THREE.Face3(0, 3, 2));
@@ -533,11 +533,11 @@ function makeSides(map,i,j,k,p){
     if(map[i][j-1] == undefined || noBlockAt(map[i][j-1][k])){
         // -z
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z-10));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z-0.5));
 
         square.faces.push(new THREE.Face3(0, 2, 1));
         square.faces.push(new THREE.Face3(0, 3, 2));
@@ -547,11 +547,11 @@ function makeSides(map,i,j,k,p){
     if(map[i][j][k+1] == undefined || noBlockAt(map[i][j][k+1])){
         // +x
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x+10, p.y+10, p.z+10));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x+0.5, p.y+0.5, p.z+0.5));
 
         square.faces.push(new THREE.Face3(0, 2, 1));
         square.faces.push(new THREE.Face3(0, 3, 2));
@@ -561,11 +561,11 @@ function makeSides(map,i,j,k,p){
     if(map[i][j][k-1] == undefined || noBlockAt(map[i][j][k-1])){
         // -x
         var square = new THREE.Geometry();
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z-10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y+10, p.z+10));
-        square.vertices.push(new THREE.Vector3(p.x-10, p.y-10, p.z+10));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z-0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y+0.5, p.z+0.5));
+        square.vertices.push(new THREE.Vector3(p.x-0.5, p.y-0.5, p.z+0.5));
 
         square.faces.push(new THREE.Face3(0, 2, 1));
         square.faces.push(new THREE.Face3(0, 3, 2));
@@ -579,7 +579,7 @@ var players = {};
 var projectiles = {};
 
 function drawPlayer(player){
-    var cylinderGeometry = new THREE.CylinderBufferGeometry( 7.5, 7.5, 35, 10);
+    var cylinderGeometry = new THREE.CylinderBufferGeometry( 0.375, 0.375, 1.75, 10);
     cylinderGeometry = cylinderGeometry.toNonIndexed(); // ensure each face has unique vertices
 
     var material = new THREE.MeshLambertMaterial({ color: player.color });
@@ -589,9 +589,9 @@ function drawPlayer(player){
     //let newMaterial = new THREE.MeshBasicMaterial({color: player.color, map: loader.load('/sprites/Star.png')});
 
     var model = new THREE.Mesh( cylinderGeometry, material );
-    model.position.x = player.position.x * 20;
-    model.position.y = player.position.y * 20;
-    model.position.z = player.position.z * 20;
+    model.position.x = player.position.x;
+    model.position.y = player.position.y;
+    model.position.z = player.position.z;
     model.name = "MODEL FOR: " + player.id;
 
     player.userName = player.name;
@@ -618,7 +618,7 @@ function updatePlayerNameTag(player){
         removeEntity(player.usernameLabel);
     }
     player.usernameLabel = makeTextSprite(player.userName);
-    player.usernameLabel.position.set(player.position.x, player.position.y + 15, player.position.z);
+    player.usernameLabel.position.set(player.position.x, player.position.y + 0.75, player.position.z);
     player.usernameLabel.name = "USERNAME FOR: " + player.id;
     scene.add( player.usernameLabel );
 }
@@ -726,13 +726,13 @@ function roundRect(ctx, x, y, w, h, r)
 
 function updatePlayer(player){
     var p = players[player.id];
-    p.model.position.x = player.position.x * 20;
-    p.model.position.y = player.position.y * 20;
-    p.model.position.z = player.position.z * 20;
+    p.model.position.x = player.position.x;
+    p.model.position.y = player.position.y;
+    p.model.position.z = player.position.z;
    
-    p.usernameLabel.position.x = player.position.x * 20;
-    p.usernameLabel.position.y = (player.position.y * 20) + 15;
-    p.usernameLabel.position.z = player.position.z * 20;
+    p.usernameLabel.position.x = player.position.x;
+    p.usernameLabel.position.y = (player.position.y) + 0.75;
+    p.usernameLabel.position.z = player.position.z;
 }
 
 socket.on("player left", function(id){
@@ -742,7 +742,7 @@ socket.on("player left", function(id){
 });
 
 function createProjectile(p){
-    var geometry = new THREE.SphereBufferGeometry( 2, 5, 5 );
+    var geometry = new THREE.SphereBufferGeometry( 0.1, 0.25, 0.25 );
     var material = new THREE.MeshLambertMaterial( {color: 0xaaaaaa} );
     var sphere = new THREE.Mesh( geometry, material );
 
@@ -760,9 +760,9 @@ function updateProjectile(p){
         createProjectile(p);
     }else{
         var o = projectiles[p.id].object;
-        o.position.x = p.x * 20;
-        o.position.y = p.y * 20;
-        o.position.z = p.z * 20;
+        o.position.x = p.x;
+        o.position.y = p.y;
+        o.position.z = p.z;
     }
 }
 
@@ -783,9 +783,9 @@ socket.on("objects",function(things){
 
 socket.on("moveTo", function(position){
     console.log("gettin moved to ", position);
-  controls.getObject().position.x = position.x * 20;
-  controls.getObject().position.y = (position.y + 1.5) * 20;
-  controls.getObject().position.z = position.z * 20;
+  controls.getObject().position.x = position.x;
+  controls.getObject().position.y = (position.y + 1.5);
+  controls.getObject().position.z = position.z;
   playerJustFell = false;
   socket.emit("moved", {});
 })
@@ -795,9 +795,9 @@ socket.on("projectile burst", function(p){
         createProjectile(p);
     }
     var o = projectiles[p.id].object;
-    o.position.x = p.x * 20;
-    o.position.y = p.y * 20;
-    o.position.z = p.z * 20;
+    o.position.x = p.x;
+    o.position.y = p.y;
+    o.position.z = p.z;
 
     o.material = new THREE.MeshLambertMaterial( {color: 0xFF5511} );
     setTimeout(function(){
@@ -818,15 +818,15 @@ socket.on("create item", function(item, type){
     let spriteMaterial = new THREE.SpriteMaterial( { map: spriteMap } );
     let sprite = new THREE.Sprite( spriteMaterial );
 
-    sprite.position.x = item.position.x * 20;
-    sprite.position.y = item.position.y * 20;
-    sprite.position.z = item.position.z * 20;
+    sprite.position.x = item.position.x;
+    sprite.position.y = item.position.y;
+    sprite.position.z = item.position.z;
 
     //console.log(sprite.position);
 
     sprite.name = item.name;
     //sprite.id = item.id;
-    sprite.scale.set(20,20,1);
+    sprite.scale.set(1,1,0.05);
     scene.add(sprite);
   }
 });
@@ -855,7 +855,7 @@ function sleep(ms) {
 async function sendDataToServer(){
     while("Vincent" > "Michael"){
         await sleep(20);
-        socket.emit("player position",{x:controls.getObject().position.x/20, y:(controls.getObject().position.y - 15)/20, z:controls.getObject().position.z/20});
+        socket.emit("player position",{x:controls.getObject().position.x, y:(controls.getObject().position.y -0.75), z:controls.getObject().position.z});
     }
 }
 
