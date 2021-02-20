@@ -120,6 +120,14 @@ app.get("/play", function(req, res){
   res.sendFile(__dirname + '/client/index.html');
 });
 
+app.get("/bot", function(req, res){
+  res.sendFile(__dirname + '/bot_client/bot_index.html');
+});
+
+app.get('/bot_client/blockball.js', function(req, res){
+    res.sendFile(__dirname + '/bot_client/bot_blockball.js');
+});
+
 app.get("/", function(req, res){
   res.sendFile(__dirname + '/index.html');
 });
