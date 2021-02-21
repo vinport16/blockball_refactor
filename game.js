@@ -66,7 +66,7 @@ module.exports = class Game{
       x = Math.floor(Math.random()*this.map.size_x);
     }
 
-    player.move_to({x: x, y: y, z: z});
+    player.move_to({x: x+0.5, y: y, z: z+0.5});
   }
 
   player_fell(player){
