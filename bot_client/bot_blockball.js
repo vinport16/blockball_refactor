@@ -20,6 +20,10 @@ var playerClass = "scout";
 var reloadTime = 100;
 var playerSnowballCount = 1000;
 
+var path = []; // future locations (in order)
+var target = false;
+var graph = [];
+
 init();
 animate();
 
@@ -337,6 +341,56 @@ function nextPosition(position, move){
 
 }
 
+function distance( v1, v2 )
+{
+    var dx = v1.x - v2.x;
+    var dy = v1.y - v2.y;
+    var dz = v1.z - v2.z;
+
+    return Math.sqrt( dx * dx + dy * dy + dz * dz );
+}
+
+function select_target(players, position){
+    if(players.length < 1){
+        return false;
+    }
+
+    let closest = players[0];
+    players.forEach(function(p, player){
+        if(distance(position, player.position) < distance(position, closest.position)){
+            closest = player;
+        }
+    });
+
+    return closest;
+}
+
+function make_path(position, target){
+    
+    // for now, dummy path
+
+    let newPath = []; // this path uses world coordinates (+0.5)
+
+    // convert world coordinates to map coordinates
+    let pos = {i:Math.floor(position.y - 1.5), j:Math.floor(position.z), k:Math.floor(position.x)};
+
+    if(!graph[pos.i][pos.j][pos.k] || graph[pos.i][pos.j][pos.k].length < 1){
+        console.warn("bot has entered an untraversible position");
+        return [];
+    }
+
+    for(let i = 0; i < 40; i++){
+        let num_choices = graph[pos.i][pos.j][pos.k].length;
+        pos = graph[pos.i][pos.j][pos.k][Math.floor(Math.random() * num_choices)];
+
+        // convert map coordinates to world coordinates
+        newPath.push(new THREE.Vector3(pos.k+0.5, pos.i+1.5, pos.j+0.5));
+    }
+    
+    return(newPath);
+
+}
+
 function animate() {
     requestAnimationFrame( animate );
     if(controls.getObject().position.y <= 2) {
@@ -351,64 +405,90 @@ function animate() {
 
     if ( controls.isLocked === true ) {
 
+        let time = performance.now();
+
         var originalPosition = new THREE.Vector3();
         originalPosition.x = controls.getObject().position.x;
         originalPosition.y = controls.getObject().position.y;
         originalPosition.z = controls.getObject().position.z;
 
-        
-        let slightlyLower = controls.getObject().position.clone();
-        slightlyLower.y -= 1.75/2; //half height
-        var onObject = isColliding(slightlyLower);
 
-        var time = performance.now();
-        var delta = ( time - prevTime ) / 1000;
-        velocity.x -= velocity.x * 4.0 * delta;
-        velocity.z -= velocity.z * 4.0 * delta;
-        velocity.y -= 9.8 * 2.0 * delta; // 100.0 = mass
-        if(velocity.y < terminalVelocityY) {
-            velocity.y = terminalVelocityY;
-          }
-        direction.z = Number( moveForward ) - Number( moveBackward );
-        direction.x = Number( moveRight ) - Number( moveLeft );
-        direction.normalize(); // this ensures consistent movements in all directions
-        if(sprint && (moveForward || moveBackward)){
-            velocity.z -= direction.z * 30.0 * delta;
-        }
-        else if ( moveForward || moveBackward ){velocity.z -= direction.z * 17.5 * delta;}
-        if ( moveLeft || moveRight ) velocity.x -= direction.x * 17.5 * delta;
-        if ( onObject === true ) {
-            velocity.y = Math.max( 0, velocity.y );
-            canJump = true;
+        // check for new target sometimes
+        if(Math.random() > 0.95){
+            target = select_target(Object.values(players), originalPosition);
         }
-        controls.moveRight( - velocity.x * delta );
-        controls.moveForward( - velocity.z * delta );
-        controls.getObject().position.y += ( velocity.y * delta ); // new behavior
-        
-        let newPosition = controls.getObject().position;
-        let move = newPosition.sub(originalPosition);
 
-        let newPos = nextPosition(originalPosition, move);
-        controls.getObject().position.x = newPos.x;
-        controls.getObject().position.y = newPos.y;
-        controls.getObject().position.z = newPos.z;
+        // make a new path sometimes (more expensive, less frequent)
+        // also make sure ur not in an invalid position when u do it
+        if(Math.random() > 0.99 && !isColliding(originalPosition)){
+            path = make_path(originalPosition, target);
 
-        if(isColliding(originalPosition)){
-            controls.getObject().position.x = originalPosition.x;
-            //controls.getObject().position.y = originalPosition.y; // THIS STOPS JUMPING THROUGH CEILINGS
-            controls.getObject().position.z = originalPosition.z;
+            let g = new THREE.Geometry();
+            path.forEach(function(point, p){
+                g.vertices.push(
+                    new THREE.Vector3(point.x,point.y-1,point.z),
+                );
+            });
+
+            scene.add(new THREE.Line(g, new THREE.LineBasicMaterial({color: 0x22aa22})));
+
         }
+        
+        if(path.length > 0){
+            // u can move x far = (speed/deltaTime)
+            let speed = 1; // blocks/sec
+            let dist = speed/(time-prevTime);
+
+            // DISTANCE MUST BE LESS THAN 1 BLOCK
+            // (speed must be less than one block/frame)
+
+            if(distance(originalPosition, path[0]) <= dist){
+                // move there
+                controls.getObject().position.x = path[0].x;
+                controls.getObject().position.y = path[0].y;
+                controls.getObject().position.z = path[0].z;
+
+                // subtract from distance
+                dist = dist - distance(originalPosition, path[0]);
+
+                // pop that position out of the list
+                path.splice(0,1);
+
+            }
+
+            if(path.length > 0){
+                // move as far as u can towards next position
+                let move = (path[0].clone().sub(controls.getObject().position)).normalize().multiplyScalar(dist);                
+                let np = controls.getObject().position.add(move);
+
+                
+
+            }
+            
+            
+
+        }
+
+        
+
+        // face target?
+        
+        let can_hit_target = false; // can_hit(target)
+        let can_shoot = loadStatus >= 1;
+        if(can_hit_target && can_shoot){
+            // calculate perfect trajectory
+            // shoot at em
+        }
+        
+        
+        
+
 
         // update reload status and bar
         loadStatus += (time-prevTime)/reloadTime;
         loadStatus = Math.min(loadStatus, 1);
         document.getElementById( 'status-bar' ).style.width = (loadStatus * 100) + "%";
 
-        // if ( controls.getObject().position.y < 10 ) {
-        //     velocity.y = 0;
-        //     respawn();
-        //     canJump = true;
-        // }
         prevTime = time;
 
     }
@@ -476,8 +556,9 @@ socket.on("map", function(map, colors){
     //m.material.side = THREE.DoubleSide; //uncomment to render both sides
     scene.add(m);
 
-    //now draw paths
-    scene.add(create_grid(map));
+    // draw paths
+    //scene.add(create_grid(map));
+    create_grid(map);
 });
 
 
@@ -580,24 +661,22 @@ function makeSides(map,i,j,k,p){
 
 function create_grid(map){
     
-    var trav = [];
-
     var geom = new THREE.Geometry();
     
     map.forEach(function(layer, i) {
-        trav.push([]);
+        graph.push([]);
         layer.forEach(function(line, j) {
-            trav[i].push([]);
+            graph[i].push([]);
             line.forEach(function(char, k) {
-                trav[i][j].push(false);
+                graph[i][j].push(false);
                 if( is_traversable(i,j,k) ){
-                    record_edges(i, j, k, trav);
+                    record_edges(i, j, k, graph);
                 }
             });
         });
     });
 
-    trav.forEach(function(layer, i) {
+    graph.forEach(function(layer, i) {
         layer.forEach(function(line, j) {
             line.forEach(function(char, k) {
 
@@ -617,20 +696,15 @@ function create_grid(map){
         });
     });
 
-    
 
     return(new THREE.LineSegments(geom, new THREE.LineBasicMaterial({color: 0x4400ff})));
 
 }
 
-function record_edges(i, j, k, trav){
+function record_edges(i, j, k, graph){
     let links = [];
-    if(is_traversable(i+1, j, k)){
-        links.push({i:i+1, j:j, k:k});
-    }
-    if(is_traversable(i-1, j, k)){
-        links.push({i:i-1, j:j, k:k});
-    }
+
+    // link forward, backwards, left, right
     if(is_traversable(i, j+1, k)){
         links.push({i:i, j:j+1, k:k});
     }
@@ -643,7 +717,36 @@ function record_edges(i, j, k, trav){
     if(is_traversable(i, j, k-1)){
         links.push({i:i, j:j, k:k-1});
     }
-    trav[i][j][k] = links;
+
+    // link stairs up
+    if(is_traversable(i+1, j+1, k)){
+        links.push({i:i+1, j:j+1, k:k});
+    }
+    if(is_traversable(i+1, j-1, k)){
+        links.push({i:i+1, j:j-1, k:k});
+    }
+    if(is_traversable(i+1, j, k+1)){
+        links.push({i:i+1, j:j, k:k+1});
+    }
+    if(is_traversable(i+1, j, k-1)){
+        links.push({i:i+1, j:j, k:k-1});
+    }
+
+    // link stairs down
+    if(is_traversable(i-1, j+1, k)){
+        links.push({i:i-1, j:j+1, k:k});
+    }
+    if(is_traversable(i-1, j-1, k)){
+        links.push({i:i-1, j:j-1, k:k});
+    }
+    if(is_traversable(i-1, j, k+1)){
+        links.push({i:i-1, j:j, k:k+1});
+    }
+    if(is_traversable(i-1, j, k-1)){
+        links.push({i:i-1, j:j, k:k-1});
+    }
+
+    graph[i][j][k] = links;
 }
 
 function is_traversable(i, j, k){
