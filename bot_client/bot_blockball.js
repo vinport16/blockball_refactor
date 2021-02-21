@@ -365,6 +365,20 @@ function select_target(players, position){
     return closest;
 }
 
+let line_to_player = new THREE.Geometry();
+
+function exact_hit(position, target){
+    let proj_speed = 40; // assume scout class
+    let gravity = 5;
+
+    // make an arc, solve equation (?)
+
+    // draw out the arc?
+
+    // get correct angle to shoot at
+
+}
+
 function make_path(position, target){
     
     // for now, dummy path
@@ -403,7 +417,9 @@ function animate() {
       }
     }
 
-    if ( controls.isLocked === true ) {
+    // move while pointer is not locked
+
+    if ( true){//controls.isLocked === true ) {
 
         let time = performance.now();
 
@@ -420,7 +436,7 @@ function animate() {
 
         // make a new path sometimes (more expensive, less frequent)
         // also make sure ur not in an invalid position when u do it
-        if(Math.random() > 0.99 && !isColliding(originalPosition)){
+        if(Math.random() > 0.95 && !isColliding(originalPosition)){
             path = make_path(originalPosition, target);
 
             let g = new THREE.Geometry();
@@ -961,12 +977,16 @@ socket.on("objects",function(things){
 
 socket.on("moveTo", function(position){
     console.log("gettin moved to ", position);
-  controls.getObject().position.x = position.x;
-  controls.getObject().position.y = (position.y + 1.5);
-  controls.getObject().position.z = position.z;
-  playerJustFell = false;
-  socket.emit("moved", {});
-})
+
+    // clear the path. gonna need a new one.
+    path = [];
+
+    controls.getObject().position.x = position.x;
+    controls.getObject().position.y = (position.y + 1.5);
+    controls.getObject().position.z = position.z;
+    playerJustFell = false;
+    socket.emit("moved", {});
+});
 
 socket.on("projectile burst", function(p){
     if(!projectiles[p.id]){
