@@ -141,10 +141,11 @@ module.exports = class Game{
     for(let i in this.players){
       let player = this.players[i];
       
-      var dz = player.z - p.position.z;
-      var dx = player.x - p.position.x;
-      var bottom = player.y - (1.5/2);
-      var top = player.y + (1.5/2);
+      var dz = player.position.z - p.position.z;
+      var dx = player.position.x - p.position.x;
+      var bottom = player.position.y - (1.5/2);
+      var top = player.position.y + (1.5/2);
+
 
       if(Math.sqrt(dz*dz + dx*dx) < 0.375 && p.position.y < top && p.position.y > bottom && p.owner.id != player.id){
         return player;
