@@ -80,35 +80,6 @@ function init() {
     }
     var onKeyDown = function ( event ) {
         switch ( event.keyCode ) {
-            case 16: // shift
-                camera.fov = 10;
-                controls.speedFactor = 0.0004;
-                camera.updateProjectionMatrix();
-                break;
-            case 38: // up
-            case 87: // w
-                var elapsedTime = ((Date.now() - startTime)/ 1000).toFixed(3);
-                if(elapsedTime < 0.5){
-                    sprint = true;
-                }
-                moveForward = true;
-                break;
-            case 37: // left
-            case 65: // a
-                moveLeft = true;
-                break;
-            case 40: // down
-            case 83: // s
-                moveBackward = true;
-                break;
-            case 39: // right
-            case 68: // d
-                moveRight = true;
-                break;
-            case 32: // space
-                if ( canJump === true ) velocity.y += 9;
-                canJump = false;
-                break;
             case 69: // e
                 // shoot
                 if(!playerJustFell){
@@ -365,15 +336,57 @@ function select_target(players, position){
     return closest;
 }
 
+function launch_angle(dx, dy, v0, g){
+    let s1 = Math.atan(
+        (v0**2 + Math.sqrt(v0**4 - g * (2*dy*(v0**2) + g*(dx**2))))
+        /(g*dx)
+        );
+
+    let s2 = Math.atan(
+        (v0**2 - Math.sqrt(v0**4 - g * (2*dy*(v0**2) + g*(dx**2))))
+        /(g*dx)
+        );
+
+    // best angle in raidians (or NaN if not possible)
+    return Math.min(s1, s2);
+}
+
 let line_to_player = new THREE.Geometry();
 
 function exact_hit(position, target){
-    let proj_speed = 40; // assume scout class
-    let gravity = 5;
+    //position should be vector3
 
-    // make an arc, solve equation (?)
+    let proj_speed = 40; // assume scout class. blocks/sec
+    let gravity = 5; // value from server. blocks/sec/sec
+
+    // establish delta Y, delta X (also get the XZ direction)
+    let direction = target.position.clone.sub(position);
+    let deltaY = direction.y;
+    direction.y = 0;
+    let deltaX = direction.length();
+    direction.normalize();
+
+    let angle = launch_angle(deltaX, deltaY, proj_speed, gravity);
+
+    /*
+Y
+|
+|
+|         _ ---_ 
+|      *         T
+|    *
+|  /
+|_P____________________X
+   */
+
+    // check if shot is impossible
+    if(!angle){
+        return false;
+    }
 
     // draw out the arc?
+
+    
 
     // get correct angle to shoot at
 
