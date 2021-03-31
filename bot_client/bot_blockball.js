@@ -17,10 +17,13 @@ var startTime = Date.now();
 var playerJustFell = false;
 var loadStatus = 1;
 var playerClass = "scout";
-var reloadTime = 100;
+var reloadTime = 10000;
 var playerSnowballCount = 1000;
 
-var path = []; // future locations (in order)
+var players = {};
+var projectiles = {};
+
+var path = []; // future locatifons (in order)
 var target = false;
 var graph = [];
 
@@ -51,6 +54,10 @@ function init() {
         socket.emit("setUser", {name:username});
         controls.lock();
     }, false );
+
+    document.getElementById('userName').value = "robot";
+    socket.emit("setUser", {name:"robot"});
+
     controls.addEventListener( 'lock', function () {
         instructions.style.display = 'none';
         leaderboard.style.display = '';
@@ -327,7 +334,7 @@ function select_target(players, position){
     }
 
     let closest = players[0];
-    players.forEach(function(p, player){
+    players.forEach(function(player, p){
         if(distance(position, player.position) < distance(position, closest.position)){
             closest = player;
         }
@@ -351,7 +358,6 @@ function launch_angle(dx, dy, v0, g){
     return Math.min(s1, s2);
 }
 
-let line_to_player = new THREE.Geometry();
 
 function exact_hit(position, target){
     //position should be vector3
@@ -360,13 +366,15 @@ function exact_hit(position, target){
     let gravity = 5; // value from server. blocks/sec/sec
 
     // establish delta Y, delta X (also get the XZ direction)
-    let direction = target.position.clone.sub(position);
-    let deltaY = direction.y;
-    direction.y = 0;
-    let deltaX = direction.length();
-    direction.normalize();
+    let targ_vector = target.model.position.clone();
 
-    let angle = launch_angle(deltaX, deltaY, proj_speed, gravity);
+    let direction = targ_vector.clone().sub(position);
+    let angleXZ = new THREE.Vector3(1,0,0).angleTo(direction.clone().setY(0));
+
+    let deltaY = direction.y;
+    let deltaX = Math.abs(direction.x);
+
+    let angleXY = launch_angle(deltaX, deltaY, proj_speed, gravity);
 
     /*
 Y
@@ -380,7 +388,7 @@ Y
    */
 
     // check if shot is impossible
-    if(!angle){
+    if(!angleXY){
         return false;
     }
 
@@ -389,7 +397,18 @@ Y
     
 
     // get correct angle to shoot at
+    let angle_vector = new THREE.Vector3(1,0,0);
 
+    angle_vector.applyAxisAngle(new THREE.Vector3(0,0,1), angleXY);
+
+    if(direction.z > 0){
+        angle_vector.applyAxisAngle(new THREE.Vector3(0,-1,0), angleXZ);
+    }else{
+        angle_vector.applyAxisAngle(new THREE.Vector3(0,1,0), angleXZ);
+    }
+    
+
+    return(angle_vector);
 }
 
 function make_path(position, target){
@@ -403,6 +422,7 @@ function make_path(position, target){
 
     if(!graph[pos.i][pos.j][pos.k] || graph[pos.i][pos.j][pos.k].length < 1){
         console.warn("bot has entered an untraversible position");
+        socket.emit("respawn");
         return [];
     }
 
@@ -502,11 +522,16 @@ function animate() {
 
         // face target?
         
-        let can_hit_target = false; // can_hit(target)
+        let can_hit_target = !!target; // can_hit(target)
         let can_shoot = loadStatus >= 1;
         if(can_hit_target && can_shoot){
             // calculate perfect trajectory
+            let angle = exact_hit(controls.getObject().position, target);
             // shoot at em
+            socket.emit("launch", {dx:angle.x, dy:angle.y, dz:angle.z});
+
+            loadStatus = 0;
+
         }
         
         
@@ -514,7 +539,7 @@ function animate() {
 
 
         // update reload status and bar
-        loadStatus += (time-prevTime)/reloadTime;
+        loadStatus += (time-prevTime)/1000;//reloadTime;
         loadStatus = Math.min(loadStatus, 1);
         document.getElementById( 'status-bar' ).style.width = (loadStatus * 100) + "%";
 
@@ -782,9 +807,6 @@ function is_traversable(i, j, k){
     return( getFromMap({x:k, y:i, z:j}) == 0 && getFromMap({x:k, y:i+1, z:j}) == 0 && getFromMap({x:k, y:i-1, z:j}) > 0 );
 }
 
-var players = {};
-var projectiles = {};
-
 function drawPlayer(player){
     var cylinderGeometry = new THREE.CylinderBufferGeometry( 0.375, 0.375, 1.75, 10);
     cylinderGeometry = cylinderGeometry.toNonIndexed(); // ensure each face has unique vertices
@@ -989,7 +1011,7 @@ socket.on("objects",function(things){
 });
 
 socket.on("moveTo", function(position){
-    console.log("gettin moved to ", position);
+    console.log("gettin moved");
 
     // clear the path. gonna need a new one.
     path = [];
