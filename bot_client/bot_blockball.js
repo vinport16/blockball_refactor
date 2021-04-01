@@ -363,7 +363,7 @@ function exact_hit(position, target){
     //position should be vector3
 
     let proj_speed = 40; // assume scout class. blocks/sec
-    let gravity = 5; // value from server. blocks/sec/sec
+    let gravity = 20; // value from server. blocks/sec/sec
 
     // establish delta Y, delta X (also get the XZ direction)
     let targ_vector = target.model.position.clone();
@@ -372,7 +372,7 @@ function exact_hit(position, target){
     let angleXZ = new THREE.Vector3(1,0,0).angleTo(direction.clone().setY(0));
 
     let deltaY = direction.y;
-    let deltaX = Math.abs(direction.x);
+    let deltaX = direction.clone().setY(0).length();
 
     let angleXY = launch_angle(deltaX, deltaY, proj_speed, gravity);
 

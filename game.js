@@ -4,7 +4,7 @@ var Player = require('./player.js');
 var Class = require('./class.js');
 var Projectile = require('./projectile.js');
 
-const GRAV = 5;
+const GRAV = 20;
 
 module.exports = class Game{
   
@@ -162,7 +162,7 @@ module.exports = class Game{
     while(!hit && p.age < p.max_age){
       await sleep(this.wait/4);
 
-      p.velocity.y -= GRAV * this.wait/1000;
+      p.velocity.y -= GRAV/4 * this.wait/1000;
 
       p.position.x += p.velocity.x/4 * this.wait/1000;
       p.position.y += p.velocity.y/4 * this.wait/1000;  // this physics... maybe re figure this out
