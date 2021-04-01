@@ -45,7 +45,7 @@ module.exports = class Player{
 
       let velocity = {};
       velocity.x = angle.dx * p.speed;
-      velocity.y = angle.dy * p.speed + 1;
+      velocity.y = angle.dy * p.speed;
       velocity.z = angle.dz * p.speed;
 
       position.x += angle.dx * 0.05;

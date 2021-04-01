@@ -366,9 +366,7 @@ function exact_hit(position, target){
     let gravity = 20; // value from server. blocks/sec/sec
 
     // establish delta Y, delta X (also get the XZ direction)
-    let targ_vector = target.model.position.clone();
-
-    let direction = targ_vector.clone().sub(position);
+    let direction = target.clone().sub(position);
     let angleXZ = new THREE.Vector3(1,0,0).angleTo(direction.clone().setY(0));
 
     let deltaY = direction.y;
@@ -409,6 +407,32 @@ Y
     
 
     return(angle_vector);
+}
+
+function can_hit_from(position, target){
+    
+    let proj_speed = 40; // assume scout class. blocks/sec
+    let gravity = 20; // value from server. blocks/sec/sec
+
+    let distance = position.clone().sub(target).length();
+
+    let velocity = exact_hit(position, target).multiplyScalar(proj_speed);
+
+    let time_in_air = velocity.clone().setY(0).length()/proj_speed;
+
+    // proj starts at 0.8 above player position
+    let proj_p = position.clone().add(new THREE.Vector3(0,0.8,0));
+
+    let clear = true;
+    let step_speed = 60; // per sec
+
+    for(let i = 0; i < step_speed * time_in_air && clear; i++) {
+        clear = getFromMap(proj_p.clone().floor()) == 0;
+        velocity.add(new THREE.Vector3(0,-gravity/step_speed,0));
+        proj_p.add(velocity.clone().multiplyScalar(1/step_speed));
+    }
+
+    return clear;
 }
 
 function make_path(position, target){
@@ -522,11 +546,10 @@ function animate() {
 
         // face target?
         
-        let can_hit_target = !!target; // can_hit(target)
-        let can_shoot = loadStatus >= 1;
-        if(can_hit_target && can_shoot){
+        if(!!target && loadStatus >= 1 && can_hit_from(controls.getObject().position.clone(), target.model.position.clone())){
             // calculate perfect trajectory
-            let angle = exact_hit(controls.getObject().position, target);
+            let angle = exact_hit(controls.getObject().position.clone(), target.model.position.clone());
+
             // shoot at em
             socket.emit("launch", {dx:angle.x, dy:angle.y, dz:angle.z});
 
