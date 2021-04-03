@@ -343,7 +343,7 @@ function can_hit_from(position, target){
     let proj_speed = 40; // assume scout class. blocks/sec
     let gravity = 20; // value from server. blocks/sec/sec
 
-    let XZdistance = position.clone().sub(target).setY(0).length();
+    let distance = position.clone().sub(target).length();
 
     let exact_hit_angle = exact_hit(position, target);
 
@@ -354,10 +354,10 @@ function can_hit_from(position, target){
 
     let velocity = exact_hit_angle.normalize().multiplyScalar(proj_speed);
 
-    let time_in_air = XZdistance/proj_speed;
+    let time_in_air = distance/proj_speed;
 
     // proj starts at 0.8 above player position
-    let proj_p = position.clone().add(new THREE.Vector3(0,0.8,0));
+    let proj_p = position.clone().add(new THREE.Vector3(0,0,0));
 
     let clear = true;
     let step_speed = 60; // per sec
@@ -381,20 +381,21 @@ function make_path(position, target){
     let pos = {i:Math.floor(position.y - 1.5), j:Math.floor(position.z), k:Math.floor(position.x)};
 
     if(!graph[pos.i][pos.j][pos.k] || graph[pos.i][pos.j][pos.k].length < 1){
-        console.warn("bot has entered an untraversible position");
-        socket.emit("respawn");
         return [];
     }
 
     // bredth first search for position with clear shot at target
     // if no clear shot is found, just move closer to target
 
-    let num_nodes_to_explore = 200;
+    // search between 200 and 500 nodes
+    // range is to compromise between performance and quality
+    let num_nodes_to_explore = Math.floor(Math.random()*300 + 200);
     pos.parent = false; // root node of path
     let explored = {};
     explored[key(pos)] = true;
     let to_explore = [pos];
-    let best_node = pos;
+    let closest_node = pos;
+    let best_node = false; // -infinity
 
     for(let i = 0; i < num_nodes_to_explore && to_explore.length > 0; i++){
         
@@ -404,12 +405,20 @@ function make_path(position, target){
         let player_position = new THREE.Vector3(node.k, node.i, node.j).add(new THREE.Vector3(0,1.5,0))
         
         if(can_hit_from(player_position, target)){
-            best_node = node;
-            to_explore = []; // end search
+            if(best_node){
+                // check if this is closer to player
+                if(player_position.clone().sub(target).length() < (new THREE.Vector3(best_node.k, best_node.i, best_node.j).add(new THREE.Vector3(0,1.5,0)).clone().sub(target)).length()){
+                    best_node = node;
+                }else{
+                    // not best
+                }
+            }else{
+                best_node = node;
+            }
         }else{
             // check if this is the new closest to player
-            if(player_position.clone().sub(target).length() < (new THREE.Vector3(best_node.k, best_node.i, best_node.j).add(new THREE.Vector3(0,1.5,0)).clone().sub(target)).length()){
-                best_node = node;
+            if(player_position.clone().sub(target).length() < (new THREE.Vector3(closest_node.k, closest_node.i, closest_node.j).add(new THREE.Vector3(0,1.5,0)).clone().sub(target)).length()){
+                closest_node = node;
             }
 
             // add (not yet explored) children to to_explore
@@ -431,10 +440,10 @@ function make_path(position, target){
         }
     }
 
-    // construct path backwards from best_node
+    // construct path backwards from the best or closest node
     // (not including first node (current position))
     let newPath = [];
-    let node = best_node;
+    let node = best_node || closest_node;
     while(node.parent){
         // convert map coordinates to world coordinates (+0.5)
         newPath.push(new THREE.Vector3(node.k+0.5, node.i+1.5, node.j+0.5));
@@ -471,7 +480,10 @@ function animate() {
         // make a new path sometimes (more expensive, less frequent)
         // also make sure ur not in an invalid position when u do it
         if(Math.random() > 0.95 && !isColliding(originalPosition) && target){
-            path = make_path(originalPosition, target.model.position.clone());
+            let potential_path = make_path(originalPosition, target.model.position.clone());
+            if(potential_path.length > 0){
+                path = potential_path;
+            }
 
             let g = new THREE.Geometry();
             path.forEach(function(point, p){
