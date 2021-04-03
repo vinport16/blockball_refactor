@@ -251,74 +251,6 @@ function isColliding(position){
     return false;
 }
 
-function nextPosition(position, move){
-
-    if(Math.abs(move.x) + Math.abs(move.z) < 0.001){
-        let next = position.clone();
-        next.y += move.y;
-        return next;
-    }
-
-    let slightlyHigher = position.clone();
-    slightlyHigher.y += Math.sign(move.y)/0.5;
-
-    if(isColliding(position) || isColliding(slightlyHigher)){
-        let next = position.clone();
-        next.y += move.y;
-        return next;
-    }
-
-    let stepsize = move.length() / (1 + Math.floor(move.length() / 0.5));
-    stepsize = stepsize - 0.0005;
-    if(stepsize < 0.0005){stepsize = 0.0005;}
-
-    let fauxPosition = position.clone();
-    for(let step = stepsize; step < move.length(); step += stepsize){
-        fauxPosition.add(move.clone().normalize().multiplyScalar(stepsize));
-        
-        var collision = isColliding(fauxPosition);
-        if(collision){
-            let tinystep = stepsize;
-            let direction = -1;
-            for(let i = 0; i < 7; i++){
-                tinystep = tinystep/2;
-                fauxPosition.add(move.clone().normalize().multiplyScalar(tinystep * direction));
-                if(isColliding(fauxPosition)){
-                    direction = -1;
-                }else{
-                    direction = 1;
-                }
-            }
-            if(isColliding(fauxPosition)){
-                fauxPosition.add(move.clone().normalize().multiplyScalar(tinystep * direction));
-            }
-            break;
-        }
-    }
-
-    if(collision){
-        // determine if you can go more in the x or z direction
-    
-        let xtester = fauxPosition.clone();
-        xtester.x += Math.sign(move.x)/10;
-        let ztester = fauxPosition.clone();
-        ztester.z += Math.sign(move.z)/10;
-
-        let newMove = move.clone().sub(fauxPosition.clone().sub(position));
-
-        if(!isColliding(xtester)){
-          newMove.z = 0;
-          return nextPosition(fauxPosition.clone(), newMove);
-        }else if(!isColliding(ztester)){
-          newMove.x = 0;
-          return nextPosition(fauxPosition.clone(), newMove);
-        }
-
-    }
-    return fauxPosition;
-
-}
-
 function distance( v1, v2 )
 {
     var dx = v1.x - v2.x;
@@ -355,6 +287,7 @@ function launch_angle(dx, dy, v0, g){
         );
 
     // best angle in raidians (or NaN if not possible)
+    // prefer angle closer to 0 (horizontal)
     return Math.min(s1, s2);
 }
 
@@ -385,14 +318,10 @@ Y
 |_P____________________X
    */
 
-    // check if shot is impossible
+    // check if shot is impossible (too far away)
     if(!angleXY){
         return false;
     }
-
-    // draw out the arc?
-
-    
 
     // get correct angle to shoot at
     let angle_vector = new THREE.Vector3(1,0,0);
@@ -414,11 +343,18 @@ function can_hit_from(position, target){
     let proj_speed = 40; // assume scout class. blocks/sec
     let gravity = 20; // value from server. blocks/sec/sec
 
-    let distance = position.clone().sub(target).length();
+    let XZdistance = position.clone().sub(target).setY(0).length();
 
-    let velocity = exact_hit(position, target).multiplyScalar(proj_speed);
+    let exact_hit_angle = exact_hit(position, target);
 
-    let time_in_air = velocity.clone().setY(0).length()/proj_speed;
+    // check if there is no possible hit angle (target too far away)
+    if(!exact_hit_angle){
+        return false;
+    }
+
+    let velocity = exact_hit_angle.normalize().multiplyScalar(proj_speed);
+
+    let time_in_air = XZdistance/proj_speed;
 
     // proj starts at 0.8 above player position
     let proj_p = position.clone().add(new THREE.Vector3(0,0.8,0));
@@ -435,11 +371,11 @@ function can_hit_from(position, target){
     return clear;
 }
 
-function make_path(position, target){
-    
-    // for now, dummy path
+function key(position){
+    return "x" + position.k + "y" + position.i + "z" + position.j;
+}
 
-    let newPath = []; // this path uses world coordinates (+0.5)
+function make_path(position, target){
 
     // convert world coordinates to map coordinates
     let pos = {i:Math.floor(position.y - 1.5), j:Math.floor(position.z), k:Math.floor(position.x)};
@@ -450,15 +386,62 @@ function make_path(position, target){
         return [];
     }
 
-    for(let i = 0; i < 40; i++){
-        let num_choices = graph[pos.i][pos.j][pos.k].length;
-        pos = graph[pos.i][pos.j][pos.k][Math.floor(Math.random() * num_choices)];
+    // bredth first search for position with clear shot at target
+    // if no clear shot is found, just move closer to target
 
-        // convert map coordinates to world coordinates
-        newPath.push(new THREE.Vector3(pos.k+0.5, pos.i+1.5, pos.j+0.5));
+    let num_nodes_to_explore = 200;
+    pos.parent = false; // root node of path
+    let explored = {};
+    explored[key(pos)] = true;
+    let to_explore = [pos];
+    let best_node = pos;
+
+    for(let i = 0; i < num_nodes_to_explore && to_explore.length > 0; i++){
+        
+        let node = to_explore.splice(0,1)[0];
+
+        // check if you can hit the target
+        let player_position = new THREE.Vector3(node.k, node.i, node.j).add(new THREE.Vector3(0,1.5,0))
+        
+        if(can_hit_from(player_position, target)){
+            best_node = node;
+            to_explore = []; // end search
+        }else{
+            // check if this is the new closest to player
+            if(player_position.clone().sub(target).length() < (new THREE.Vector3(best_node.k, best_node.i, best_node.j).add(new THREE.Vector3(0,1.5,0)).clone().sub(target)).length()){
+                best_node = node;
+            }
+
+            // add (not yet explored) children to to_explore
+            let choices = graph[node.i][node.j][node.k];
+            choices.forEach(function(choice, c){
+                if(!explored[key(choice)]){
+                    // lets make a shallow copy
+                    let copy = {};
+                    copy.i = choice.i;
+                    copy.j = choice.j;
+                    copy.k = choice.k;
+                    // record parent
+                    copy.parent = node;
+
+                    to_explore.push(copy);
+                    explored[key(copy)] = true;
+                }
+            });
+        }
+    }
+
+    // construct path backwards from best_node
+    // (not including first node (current position))
+    let newPath = [];
+    let node = best_node;
+    while(node.parent){
+        // convert map coordinates to world coordinates (+0.5)
+        newPath.push(new THREE.Vector3(node.k+0.5, node.i+1.5, node.j+0.5));
+        node = node.parent;
     }
     
-    return(newPath);
+    return newPath.reverse();
 
 }
 
@@ -480,21 +463,15 @@ function animate() {
 
         let time = performance.now();
 
-        var originalPosition = new THREE.Vector3();
-        originalPosition.x = controls.getObject().position.x;
-        originalPosition.y = controls.getObject().position.y;
-        originalPosition.z = controls.getObject().position.z;
+        var originalPosition = controls.getObject().position.clone();
 
-
-        // check for new target sometimes
-        if(Math.random() > 0.95){
-            target = select_target(Object.values(players), originalPosition);
-        }
+        // check for new target
+        target = select_target(Object.values(players), originalPosition);
 
         // make a new path sometimes (more expensive, less frequent)
         // also make sure ur not in an invalid position when u do it
-        if(Math.random() > 0.95 && !isColliding(originalPosition)){
-            path = make_path(originalPosition, target);
+        if(Math.random() > 0.95 && !isColliding(originalPosition) && target){
+            path = make_path(originalPosition, target.model.position.clone());
 
             let g = new THREE.Geometry();
             path.forEach(function(point, p){
@@ -543,8 +520,6 @@ function animate() {
         }
 
         
-
-        // face target?
         
         if(!!target && loadStatus >= 1 && can_hit_from(controls.getObject().position.clone(), target.model.position.clone())){
             // calculate perfect trajectory
